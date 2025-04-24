@@ -1,0 +1,57 @@
+# Dossier du modèle et fichiers volumineux
+chatbot_model/
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.ckpt
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environnements virtuels
+venv/
+ENV/
+env/
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Système
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Autoriser les fichiers du modèle
+!chatbot_model/*
+!chatbot_model/model.safetensors
+!chatbot_model/*.json
+!chatbot_model/merges.txt
+!chatbot_model/vocab.json
+!chatbot_model/training_args.bin 
