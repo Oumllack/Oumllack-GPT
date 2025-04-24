@@ -28,11 +28,10 @@ wheels/
 .installed.cfg
 *.egg
 
-# Environnements virtuels
+# Virtual Environment
 venv/
 ENV/
 env/
-.env
 
 # IDE
 .idea/
@@ -40,13 +39,21 @@ env/
 *.swp
 *.swo
 
-# Système
-.DS_Store
-Thumbs.db
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
 
 # Logs
 *.log
 logs/
+
+# Local development settings
+.env
+.env.local
+
+# System files
+.DS_Store
+Thumbs.db
 
 # Autoriser les fichiers du modèle
 !chatbot_model/*
