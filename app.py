@@ -11,8 +11,28 @@ st.set_page_config(
     layout="wide"
 )
 
-# Afficher le répertoire de travail
-st.write(f"Répertoire de travail: {os.getcwd()}")
+# Vérification du modèle
+MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chatbot_model")
+if not os.path.exists(MODEL_PATH):
+    st.error("❌ Le dossier du modèle n'existe pas!")
+    st.stop()
+
+required_files = [
+    "model.safetensors",
+    "config.json",
+    "tokenizer_config.json",
+    "vocab.json",
+    "merges.txt"
+]
+
+missing_files = []
+for file in required_files:
+    if not os.path.exists(os.path.join(MODEL_PATH, file)):
+        missing_files.append(file)
+
+if missing_files:
+    st.error(f"❌ Fichiers manquants dans le dossier du modèle: {', '.join(missing_files)}")
+    st.stop()
 
 # Style CSS personnalisé
 st.markdown("""
@@ -91,66 +111,52 @@ with st.sidebar:
 @st.cache_resource
 def load_model():
     try:
-        # Utiliser le chemin absolu
-        model_path = "/Users/spacegreen/Desktop/NLP project/chatbot_model"
-        st.write(f"Tentative de chargement depuis: {model_path}")
-        
-        if not os.path.exists(model_path):
-            st.error(f"Dossier non trouvé: {model_path}")
-            return None, None
-            
-        # Vérifier les fichiers
-        required_files = ["model.safetensors", "config.json", "tokenizer_config.json", "vocab.json", "merges.txt"]
-        for file in required_files:
-            file_path = os.path.join(model_path, file)
-            if os.path.exists(file_path):
-                st.write(f"✅ Fichier trouvé: {file}")
-            else:
-                st.error(f"❌ Fichier manquant: {file}")
-                return None, None
-        
-        st.write("Chargement du tokenizer...")
-        tokenizer = GPT2Tokenizer.from_pretrained(model_path, local_files_only=True)
-        st.write("Tokenizer chargé")
-        
-        st.write("Chargement du modèle...")
-        model = GPT2LMHeadModel.from_pretrained(model_path, local_files_only=True)
-        st.write("Modèle chargé")
+        tokenizer = GPT2Tokenizer.from_pretrained(MODEL_PATH, local_files_only=True)
+        model = GPT2LMHeadModel.from_pretrained(MODEL_PATH, local_files_only=True)
         
         tokenizer.pad_token = tokenizer.eos_token
         tokenizer.padding_side = 'left'
         model.eval()
         
-        st.success("Modèle et tokenizer chargés avec succès!")
+        if torch.cuda.is_available():
+            model = model.cuda()
+            st.success("✅ Modèle chargé sur GPU")
+        else:
+            st.info("ℹ️ Modèle chargé sur CPU")
+            
         return model, tokenizer
     except Exception as e:
-        st.error(f"Erreur: {str(e)}")
-        import traceback
-        st.error(f"Traceback: {traceback.format_exc()}")
+        st.error(f"❌ Erreur lors du chargement du modèle: {str(e)}")
         return None, None
 
 def generate_response(prompt):
     try:
         model, tokenizer = load_model()
         if model is None or tokenizer is None:
-            return "Erreur: Modèle non chargé"
+            return "❌ Erreur: Le modèle n'a pas pu être chargé."
             
-        st.write("Génération de la réponse...")
-        inputs = tokenizer.encode(prompt, return_tensors="pt")
-        outputs = model.generate(
-            inputs,
-            max_length=100,
-            temperature=0.7,
-            num_return_sequences=1,
-            pad_token_id=tokenizer.eos_token_id
-        )
-        
-        response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-        return response.replace(prompt, "").strip()
+        with st.spinner("🤔 Génération de la réponse..."):
+            inputs = tokenizer.encode(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512)
+            if torch.cuda.is_available():
+                inputs = inputs.cuda()
+                
+            with torch.no_grad():
+                outputs = model.generate(
+                    inputs,
+                    max_length=100,
+                    temperature=0.7,
+                    num_return_sequences=1,
+                    pad_token_id=tokenizer.eos_token_id,
+                    do_sample=True,
+                    top_k=50,
+                    top_p=0.95,
+                    no_repeat_ngram_size=2
+                )
+                
+            response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+            return response.replace(prompt, "").strip()
     except Exception as e:
-        st.error(f"Erreur lors de la génération: {str(e)}")
-        import traceback
-        st.error(f"Traceback: {traceback.format_exc()}")
+        st.error(f"❌ Erreur lors de la génération: {str(e)}")
         return f"Erreur: {str(e)}"
 
 # Initialisation des états de session
@@ -172,4 +178,10 @@ if prompt := st.chat_input("Écrivez votre message ici"):
         with st.spinner("Génération de la réponse..."):
             response = generate_response(prompt)
             st.markdown(response)
-            st.session_state.messages.append({"role": "assistant", "content": response}) 
+            st.session_state.messages.append({"role": "assistant", "content": response})
+
+# Interface simple
+user_input = st.text_input("💬 Votre message:")
+if user_input:
+    response = generate_response(user_input)
+    st.write("🤖 Réponse:", response) 
